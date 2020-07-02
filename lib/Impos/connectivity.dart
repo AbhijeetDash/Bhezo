@@ -19,7 +19,7 @@ class Reciever {
   }
 
   Future<bool> connectToServer(String ip, int port) {
-    // Takes The IP Address and Port Number
+    //Takes The IP Address and Port Number
   }
 
   Future<bool> startRecieve() {}

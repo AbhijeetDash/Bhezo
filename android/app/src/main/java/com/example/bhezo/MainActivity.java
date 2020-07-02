@@ -119,7 +119,8 @@ public class MainActivity extends FlutterActivity {
             );
     }
 
-
+    // Variables must be private static.. as they are being used in 
+    // inner class callbacks..
     private static LocalOnlyHotspotReservation mReservation;
     private static WifiConfiguration wap;
     private static String key; 
@@ -131,22 +132,26 @@ public class MainActivity extends FlutterActivity {
             wifiManager.setWifiEnabled(false);          
         }
         wifiManager.startLocalOnlyHotspot(new LocalOnlyHotspotCallback() {
-            
+            // This is automatically called when (The Hotspot is Created)
             @Override
             public void onStarted(final LocalOnlyHotspotReservation reservation) {
                 super.onStarted(reservation);
+                // LocalOnlyHotspotReservation.. contains..
+                // WifiConfiguration, SoftApConfiguration
                 mReservation = reservation;
                 wap = mReservation.getWifiConfiguration();
                 key = wap.preSharedKey;
                 ssid = wap.SSID;
             }
 
+            // Automatically called when the Hotspot is deactivated..
             @Override
             public void onStopped() {
                 super.onStopped();
                 mReservation.close();
             }
 
+            // Called on Error..
             @Override
             public void onFailed(final int reason) {
                 super.onFailed(reason);
@@ -158,19 +163,24 @@ public class MainActivity extends FlutterActivity {
 
     public String getIPServer(){
         String ip = "";
+        //Get the IP address of the server device...
         try {
+            // List of all the NetworkInterfaces that are open at the moment..
             Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface.getNetworkInterfaces();
             while (enumNetworkInterfaces.hasMoreElements()) {
                 NetworkInterface networkInterface = enumNetworkInterfaces.nextElement();
+                // List of all available INetAddress from Network Interface..
                 Enumeration<InetAddress> enumInetAddress = networkInterface.getInetAddresses();
                 while (enumInetAddress.hasMoreElements()) {
                     InetAddress inetAddress = enumInetAddress.nextElement();
                     if (inetAddress.isSiteLocalAddress()) {
+                        // All available Addresses that can be used as a Host Address..
                         ip += "SiteLocalAddress: "+inetAddress.getHostAddress()+"\n";
                     }
                 }
             }
             if(wap!=null){
+                // Getting the SSID and Passcode of LocalOnlyHotspot 
                 ip += "Passphrase : "+wap.preSharedKey+"\n";
                 ip += "SSID : "+wap.SSID;
             }
@@ -181,6 +191,8 @@ public class MainActivity extends FlutterActivity {
         return ip;
     }
 
+    // Don't know if client's IP address is needed or not..
+    // But this code does it anyway.. (:o)-|
     public String getIpClient(){
         try {
             final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
@@ -196,6 +208,7 @@ public class MainActivity extends FlutterActivity {
 
     // public void startServer(){
     //     final Thread server = new Thread(new ServerThread());
+    //     yet to create the server thread
     //     server.run();
     // }
     
@@ -204,23 +217,26 @@ public class MainActivity extends FlutterActivity {
         final LocationManager location = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
         return location.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
-
+    // Opens settings to enable location
     public void openSettings(){
         startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
     }
 
-    // Dont Hurt me please..
-
+    // gets the wifi status for UI update..
     public boolean getWifiStatus(){
         final WifiManager wifiMan = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         return wifiMan.isWifiEnabled();
     }
 
+    // changes the wifi status from ON-VV-OFF
     public void changeWifiStatus(){
         final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         wifiManager.setWifiEnabled(!wifiManager.isWifiEnabled());
     }
 
+
+    // The code bellow is to get the files, pictures, videos, apps and all..
+    // These are working great for now.. 
     public Map<String,Object> getPictures(){
         final HashMap<String, Object> allImageInfoList = new HashMap<>();
         final ArrayList<String> allImageList = new ArrayList<>();
@@ -246,7 +262,6 @@ public class MainActivity extends FlutterActivity {
             allImageInfoList.put("DISPLAY_NAME", displayNameList);
             allImageInfoList.put("DATE_ADDED", dateAddedList);
             allImageInfoList.put("TITLE", titleList);
-
         }
         return allImageInfoList;
     }
