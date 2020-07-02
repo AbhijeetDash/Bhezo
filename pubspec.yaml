@@ -17,6 +17,7 @@ dependencies:
   shared_preferences: ^0.5.7+3
   flare_flutter: ^2.0.3
   qr_flutter: ^3.2.0
+  qr_code_scanner: ^0.0.13
   
 dev_dependencies:
   flutter_test:

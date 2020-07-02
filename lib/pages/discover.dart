@@ -1,8 +1,10 @@
 import 'package:bhezo/Impos/connectivity.dart';
+import 'package:bhezo/pages/scanCam.dart';
 import 'package:bhezo/utils/deco.dart';
 import 'package:flare_flutter/flare_actor.dart';
 import 'package:flutter/material.dart';
 import 'package:flare_dart/actor.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 
 class Discover extends StatefulWidget {
   @override
@@ -74,6 +76,7 @@ class _WifiButtonState extends State<WifiButton> {
   Alignment btnAlign = Alignment.centerLeft;
   Widget icon = Icon(Icons.signal_wifi_off);
   bool localBool = false;
+
   @override
   void initState() {
     setState(() {
@@ -148,19 +151,23 @@ class _WifiButtonState extends State<WifiButton> {
                                 radius: 30,
                                 backgroundColor: ThemeAssets().darkAccent,
                                 child: IconButton(
-                                  icon: Icon(Icons.crop_free, color: Colors.white,), 
-                                  onPressed: (){
-                                    
-                                  }
-                                ),
+                                    icon: Icon(
+                                      Icons.crop_free,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                              builder: (context) => CamScan()));
+                                    }),
                               )
                             ],
                           )
                         : Container(
-                          width: 200,
-                          height: 200,
-                          child: FlareActor('assets/NO_Wifi.flr', animation: "init")))
-                        ),
+                            width: 200,
+                            height: 200,
+                            child: FlareActor('assets/NO_Wifi.flr',
+                                animation: "init")))),
           ),
         )
       ],

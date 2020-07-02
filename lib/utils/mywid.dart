@@ -158,15 +158,15 @@ class _CustomAppCardState extends State<CustomAppCard> {
   bool selected;
 
   @override
-  initState(){
+  initState() {
     setState(() {
-      if(selections.contains({"Application" : widget.app})){
+      if (selections.contains({"Application": widget.app})) {
         selected = true;
       } else {
         selected = false;
       }
     });
-    super.initState();    
+    super.initState();
   }
 
   @override
@@ -174,7 +174,7 @@ class _CustomAppCardState extends State<CustomAppCard> {
     return RawMaterialButton(
       onPressed: () {
         if (selected) {
-          selections.removeFromSelections({"Application" : widget.app});
+          selections.removeFromSelections({"Application": widget.app});
           setState(() {
             selected = false;
           });
@@ -220,7 +220,7 @@ class _CustomAppCardState extends State<CustomAppCard> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
                             RawMaterialButton(
-                              onPressed: (){
+                              onPressed: () {
                                 Navigator.of(context).pop();
                               },
                               shape: StadiumBorder(),
@@ -229,8 +229,8 @@ class _CustomAppCardState extends State<CustomAppCard> {
                             ),
                             SizedBox(width: 10),
                             RawMaterialButton(
-                              onPressed: (){
-                                  //Send Code Goes Here
+                              onPressed: () {
+                                //Send Code Goes Here
                               },
                               shape: StadiumBorder(),
                               fillColor: ThemeAssets().darkAccent,
@@ -246,7 +246,7 @@ class _CustomAppCardState extends State<CustomAppCard> {
           setState(() {
             selected = true;
           });
-          selections.addToSelections({"Application" : widget.app});
+          selections.addToSelections({"Application": widget.app});
           print(selections.allSelections);
         }
       },
@@ -298,13 +298,9 @@ class _CustomAppCardState extends State<CustomAppCard> {
   }
 }
 
-
 class FolderSelector extends StatefulWidget {
   final Map<String, Object> path;
-  const FolderSelector({
-    Key key,
-    @required this.path
-  }) : super(key: key);
+  const FolderSelector({Key key, @required this.path}) : super(key: key);
   @override
   _FolderSelectorState createState() => _FolderSelectorState();
 }
@@ -313,7 +309,7 @@ class _FolderSelectorState extends State<FolderSelector> {
   bool selected;
   @override
   void initState() {
-    if(selections.contains(widget.path)){
+    if (selections.contains(widget.path)) {
       selected = true;
     } else {
       selected = false;
@@ -324,9 +320,9 @@ class _FolderSelectorState extends State<FolderSelector> {
   @override
   Widget build(BuildContext context) {
     return RawMaterialButton(
-      onPressed: (){
+      onPressed: () {
         setState(() {
-          if(selected){
+          if (selected) {
             selected = false;
             selections.removeFromSelections(widget.path);
           } else {
@@ -338,14 +334,14 @@ class _FolderSelectorState extends State<FolderSelector> {
       child: Container(
         child: CircleAvatar(
           maxRadius: 10,
-          backgroundColor: selected?ThemeAssets().darkAccent: ThemeAssets().lightAccent,
+          backgroundColor:
+              selected ? ThemeAssets().darkAccent : ThemeAssets().lightAccent,
           child: Container(),
         ),
       ),
     );
   }
 }
-
 
 class SendRecieveButton extends StatelessWidget {
   const SendRecieveButton({
@@ -364,33 +360,33 @@ class SendRecieveButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          RawMaterialButton(onPressed: (){
-            Navigator.of(context).pushReplacement(PageRouteBuilder(
-              pageBuilder: (a,b,c){
-                return HotSpot();
-              },
-              transitionDuration: Duration(milliseconds: 500)
-            ));
-          },
-          shape: StadiumBorder(),
-          fillColor: ThemeAssets().darkAccent,
-          child: Hero(
-            tag: "DiscoverPage",
-            key: Key("DiscoverPage"),
-            child: Text("Send")),
+          RawMaterialButton(
+            onPressed: () {
+              Navigator.of(context).pushReplacement(PageRouteBuilder(
+                  pageBuilder: (a, b, c) {
+                    return HotSpot();
+                  },
+                  transitionDuration: Duration(milliseconds: 500)));
+            },
+            shape: StadiumBorder(),
+            fillColor: ThemeAssets().darkAccent,
+            child: Hero(
+                tag: "DiscoverPage",
+                key: Key("DiscoverPage"),
+                child: Text("Send")),
           ),
           SizedBox(width: 5),
-          RawMaterialButton(onPressed: (){
+          RawMaterialButton(
+            onPressed: () {
               Navigator.of(context).pushReplacement(PageRouteBuilder(
-                pageBuilder: (a,b,c){
-                  return Discover();
-                },
-                transitionDuration: Duration(milliseconds: 500)
-              ));
-          },
-          shape: StadiumBorder(),
-          fillColor: ThemeAssets().darkAccent,
-          child: Text("Recieve"),
+                  pageBuilder: (a, b, c) {
+                    return Discover();
+                  },
+                  transitionDuration: Duration(milliseconds: 500)));
+            },
+            shape: StadiumBorder(),
+            fillColor: ThemeAssets().darkAccent,
+            child: Text("Recieve"),
           ),
           SizedBox(width: 5),
         ],

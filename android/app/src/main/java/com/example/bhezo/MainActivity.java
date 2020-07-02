@@ -1,5 +1,6 @@
 package com.example.bhezo;
 
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import androidx.annotation.NonNull;
@@ -9,6 +10,7 @@ import io.flutter.plugin.common.MethodChannel;
 import java.io.*;
 import java.util.*;
 import android.net.Uri;
+import java.lang.reflect.Method;
 import android.provider.MediaStore;
 import android.provider.MediaStore.Video;
 import android.provider.MediaStore.Video.Media;
@@ -21,9 +23,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiConfiguration;
-import java.lang.reflect.Method;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.LocalOnlyHotspotReservation;
+import android.net.wifi.WifiInfo;
 import android.location.LocationManager;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,9 +34,12 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+//import 	android.net.wifi.SoftApConfiguration;
 
 public class MainActivity extends FlutterActivity {
     private static final String CHANNEL = "bhejo.flutter.dev/FUNCTIONS";
@@ -45,6 +50,7 @@ public class MainActivity extends FlutterActivity {
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL)
             .setMethodCallHandler(
                 (call, result) -> {
+
                     if(call.method.equals("getFolders")){
                         List<Map<String, Object>> data = getFiles();
                         result.success(data);
@@ -71,6 +77,8 @@ public class MainActivity extends FlutterActivity {
                         result.success(data);
                     }
 
+                    // Main Wifi Code from here...
+
                     if(call.method.equals("getWifiStatus")){
                         result.success(getWifiStatus());
                     }
@@ -80,20 +88,32 @@ public class MainActivity extends FlutterActivity {
                         result.success(true);
                     }
 
+                    // Main Server Code...
+
                     if(call.method.equals("startServer")){
+                        // We also need to start the server when we enable the HotSpot.
+                        // We must return the IP address and the passcode of the network..
                         result.success(enableHotspot());
                     }
 
                     if(call.method.equals("getLocationStatus")){
+                        // Location must enabled before enabling LocalOnlyHotspot..
                         result.success(locationStatus());
                     }
 
                     if(call.method.equals("enableLocation")){
+                        // If location not enabled only then this happens..
                         openSettings();
                     }
 
-                    if(call.method.equals("getIP")){
-                        result.success(getIP());
+                    // The main code to start the server and get the IP
+
+                    if(call.method.equals("getCodeDetails")){
+                        result.success(getIPServer());
+                    }
+
+                    if(call.method.equals("getIPClient")){
+                        result.success(getIpClient());
                     }
                 }
             );
@@ -101,24 +121,32 @@ public class MainActivity extends FlutterActivity {
 
 
     private static LocalOnlyHotspotReservation mReservation;
+    private static WifiConfiguration wap;
+    private static String key; 
+    private static String ssid;
     
     public boolean enableHotspot(){
         final WifiManager wifiManager = (WifiManager) getBaseContext().getSystemService(Context.WIFI_SERVICE);
         if(wifiManager.isWifiEnabled()){
             wifiManager.setWifiEnabled(false);          
-        }       
-        wifiManager.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {    
+        }
+        wifiManager.startLocalOnlyHotspot(new LocalOnlyHotspotCallback() {
+            
             @Override
-            public void onStarted(final WifiManager.LocalOnlyHotspotReservation reservation) {
+            public void onStarted(final LocalOnlyHotspotReservation reservation) {
                 super.onStarted(reservation);
                 mReservation = reservation;
+                wap = mReservation.getWifiConfiguration();
+                key = wap.preSharedKey;
+                ssid = wap.SSID;
             }
-    
+
             @Override
             public void onStopped() {
                 super.onStopped();
+                mReservation.close();
             }
-    
+
             @Override
             public void onFailed(final int reason) {
                 super.onFailed(reason);
@@ -128,27 +156,50 @@ public class MainActivity extends FlutterActivity {
         return true;
     }
 
-    // Server code..
-    
-    public String getIP(){
+    public String getIPServer(){
+        String ip = "";
+        try {
+            Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (enumNetworkInterfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = enumNetworkInterfaces.nextElement();
+                Enumeration<InetAddress> enumInetAddress = networkInterface.getInetAddresses();
+                while (enumInetAddress.hasMoreElements()) {
+                    InetAddress inetAddress = enumInetAddress.nextElement();
+                    if (inetAddress.isSiteLocalAddress()) {
+                        ip += "SiteLocalAddress: "+inetAddress.getHostAddress()+"\n";
+                    }
+                }
+            }
+            if(wap!=null){
+                ip += "Passphrase : "+wap.preSharedKey+"\n";
+                ip += "SSID : "+wap.SSID;
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+            ip += "Something Wrong! " + e.toString() + "\n";
+        }        
+        return ip;
+    }
+
+    public String getIpClient(){
         try {
             final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
             assert wifiManager != null;
             final WifiInfo wifiInfo = wifiManager.getConnectionInfo();
             final int ipInt = wifiInfo.getIpAddress();
-            return InetAddress.getByAddress(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(ipInt).array()).getHostAddress()+"..."+8080;
+            return InetAddress.getByAddress(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(ipInt).array()).getHostAddress();
         } catch (Exception e) {
+            System.out.println(e);
             return null;
         }
     }
 
-    public void startServer(){
-        final Thread server = new Thread(new ServerThread());
-        server.run();
-    }
+    // public void startServer(){
+    //     final Thread server = new Thread(new ServerThread());
+    //     server.run();
+    // }
     
     // this is also done..
-
     public boolean locationStatus(){
         final LocationManager location = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
         return location.isProviderEnabled(LocationManager.GPS_PROVIDER);
@@ -287,43 +338,3 @@ public class MainActivity extends FlutterActivity {
         return map;
     }
 }
-
-class ServerThread implements Runnable {
-    @Override
-    public void run() {
-       Socket socket;
-       try {
-          serverSocket = new ServerSocket(8080);
-          try {
-             socket = serverSocket.accept();
-             output = new PrintWriter(socket.getOutputStream());
-             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             new Thread(new Thread2()).start();
-          } catch (final IOException e) {
-             e.printStackTrace();
-          }
-       } catch (final IOException e) {
-          e.printStackTrace();
-       }
-    }
- }
-
- class Thread2 implements Runnable {
-    @Override
-    public void run() {
-       while (true) {
-          try {
-             final String message = input.readLine();
-             if (message != null) {
-                // Files are recieved here
-             } else {
-                ServerThread = new Thread(new ServerThread());
-                ServerThread.start();
-                return;
-             }
-          } catch (IOException e) {
-             e.printStackTrace();
-          }
-       }
-    }
- }
