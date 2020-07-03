@@ -4,7 +4,7 @@ import 'package:bhezo/utils/deco.dart';
 import 'package:flare_flutter/flare_actor.dart';
 import 'package:flutter/material.dart';
 import 'package:flare_dart/actor.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:wifi_flutter/wifi_flutter.dart';
 
 class Discover extends StatefulWidget {
   @override
@@ -76,9 +76,37 @@ class _WifiButtonState extends State<WifiButton> {
   Alignment btnAlign = Alignment.centerLeft;
   Widget icon = Icon(Icons.signal_wifi_off);
   bool localBool = false;
+  bool nameBool = false;
+  Widget name;
+
+  Future<void> scanWifi() async {
+    return WifiFlutter.scanNetworks().then((value) {
+      print("Scanning");
+      final networks = value;
+      networks.forEach((element) {
+        if (element.ssid.contains("AndroidShare")) {
+          print("found");
+          setState(() {
+            name = Text(
+              element.ssid + "\nTap to connect",
+              style: ThemeAssets().subtitleBlack,
+              textAlign: TextAlign.center,
+            );
+            nameBool = true;
+          });
+        }
+      });
+      return;
+    }).catchError((onError) {
+      setState(() {
+        nameBool = false;
+      });
+    });
+  }
 
   @override
   void initState() {
+    scanWifi();
     setState(() {
       localBool = widget.wifiState;
       if (widget.wifiState) {
@@ -114,7 +142,8 @@ class _WifiButtonState extends State<WifiButton> {
               child: IconButton(
                   icon: icon,
                   onPressed: () {
-                    Reciever().changeWifiStatus();
+                    scanWifi();
+                    Reciever().changeWifiStatus().then((value) {});
                     setState(() {
                       localBool = !localBool;
                       if (localBool) {
@@ -147,20 +176,67 @@ class _WifiButtonState extends State<WifiButton> {
                                 'assets/Connecting_Ripple.flr',
                                 animation: "Untitled",
                               ),
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: ThemeAssets().darkAccent,
-                                child: IconButton(
-                                    icon: Icon(
-                                      Icons.crop_free,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (context) => CamScan()));
-                                    }),
-                              )
+                              nameBool == false
+                                  ? CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: ThemeAssets().darkAccent,
+                                      child: IconButton(
+                                          icon: Icon(
+                                            Icons.crop_free,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        CamScan()));
+                                          }))
+                                  : RawMaterialButton(
+                                      shape: StadiumBorder(),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          CircleAvatar(
+                                            radius: 30,
+                                            backgroundColor:
+                                                ThemeAssets().darkAccent,
+                                            child: IconButton(
+                                                icon: Icon(
+                                                  Icons.crop_free,
+                                                  color: Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  Navigator.of(context).push(
+                                                      MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              CamScan()));
+                                                }),
+                                          ),
+                                          SizedBox(width: 10),
+                                          Container(
+                                              decoration: BoxDecoration(
+                                                  color:
+                                                      ThemeAssets().darkAccent,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          30)),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(18.0),
+                                                child: name,
+                                              )),
+                                          SizedBox(width: 10),
+                                        ],
+                                      ),
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    CamScan()));
+                                      },
+                                    )
                             ],
                           )
                         : Container(

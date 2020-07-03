@@ -9,13 +9,14 @@ class DeviceFolders {
     return platform.invokeMethod('getFolders').then((files) {
       List<File> list = new List();
       if (files != null && files is List) {
-        for(var element in files){
-          if(element is Map){
+        for (var element in files) {
+          if (element is Map) {
             try {
               list.add(File(element));
             } catch (e) {
               if (e is AssertionError) {
-                print('[DeviceFolders] Unable to add the following file: $element');
+                print(
+                    '[DeviceFolders] Unable to add the following file: $element');
               } else {
                 print('[DeviceFolders] $e');
               }
@@ -32,19 +33,19 @@ class DeviceFolders {
     });
   }
 
-    static Future<List<File>> getFolderAtPath(String path) async {
-    return platform.invokeMethod('getFolderAtPath', {
-      'path' : path
-    }).then((files) {
+  static Future<List<File>> getFolderAtPath(String path) async {
+    return platform
+        .invokeMethod('getFolderAtPath', {'path': path}).then((files) {
       List<File> list = new List();
       if (files != null && files is List) {
-        for(var element in files){
-          if(element is Map){
+        for (var element in files) {
+          if (element is Map) {
             try {
               list.add(File(element));
             } catch (e) {
               if (e is AssertionError) {
-                print('[DeviceFolders] Unable to add the following file: $element');
+                print(
+                    '[DeviceFolders] Unable to add the following file: $element');
               } else {
                 print('[DeviceFolders] $e');
               }
@@ -72,10 +73,10 @@ class File {
   }
 
   File._fromMap(Map map)
-      :assert(map["file_name"] != null),
-       assert(map["file_path"] != null),
-       assert(map['isDir'] != null),
-       isDirectory = map['isDir'],
-       fileName = map["file_name"],
-       filePath = map["file_path"];
+      : assert(map["file_name"] != null),
+        assert(map["file_path"] != null),
+        assert(map['isDir'] != null),
+        isDirectory = map['isDir'],
+        fileName = map["file_name"],
+        filePath = map["file_path"];
 }

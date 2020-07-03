@@ -18,11 +18,29 @@ class Reciever {
         .then((value) => value is bool ? value : true);
   }
 
+  Future<Wifi> scanWifi() {
+    return platform.invokeMethod("scanWifi").then((value) {
+      return Wifi(value);
+    });
+  }
+
   Future<bool> connectToServer(String ip, int port) {
-    //Takes The IP Address and Port Number
+    // Takes The IP Address and Port Number
   }
 
   Future<bool> startRecieve() {}
+}
+
+class Wifi {
+  final String ssid;
+
+  factory Wifi(Map map) {
+    return Wifi._fromMap(map);
+  }
+
+  Wifi._fromMap(Map map)
+      : assert(map["file_name"] != null),
+        ssid = map['isDir'];
 }
 
 class Sender {

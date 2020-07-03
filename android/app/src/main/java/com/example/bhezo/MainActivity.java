@@ -26,6 +26,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.LocalOnlyHotspotReservation;
 import android.net.wifi.WifiInfo;
+import android.net.wifi.ScanResult;
 import android.location.LocationManager;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -78,18 +79,18 @@ public class MainActivity extends FlutterActivity {
                     }
 
                     // Main Wifi Code from here...
-
                     if(call.method.equals("getWifiStatus")){
+                        // Tells if the wifi is on or off
                         result.success(getWifiStatus());
                     }
 
                     if(call.method.equals("changeWifiState")){
+                        // Changes the wifi state from on--vv--off
                         changeWifiStatus();
                         result.success(true);
                     }
-
+                    
                     // Main Server Code...
-
                     if(call.method.equals("startServer")){
                         // We also need to start the server when we enable the HotSpot.
                         // We must return the IP address and the passcode of the network..
@@ -107,13 +108,16 @@ public class MainActivity extends FlutterActivity {
                     }
 
                     // The main code to start the server and get the IP
-
                     if(call.method.equals("getCodeDetails")){
                         result.success(getIPServer());
                     }
 
                     if(call.method.equals("getIPClient")){
                         result.success(getIpClient());
+                    }
+
+                    if(call.method.equals("startServer")){
+                        // This is actually the client side..
                     }
                 }
             );
