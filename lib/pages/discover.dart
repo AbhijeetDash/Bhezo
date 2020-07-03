@@ -15,6 +15,11 @@ class _DiscoverState extends State<Discover> {
   bool wifiState = false;
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
@@ -65,9 +70,7 @@ class _DiscoverState extends State<Discover> {
 
 class WifiButton extends StatefulWidget {
   WifiButton({Key key, @required this.wifiState}) : super(key: key);
-
   bool wifiState = false;
-
   @override
   _WifiButtonState createState() => _WifiButtonState();
 }
@@ -76,6 +79,7 @@ class _WifiButtonState extends State<WifiButton> {
   Alignment btnAlign = Alignment.centerLeft;
   Widget icon = Icon(Icons.signal_wifi_off);
   bool localBool = false;
+
   bool nameBool = false;
   Widget name;
 
@@ -106,7 +110,6 @@ class _WifiButtonState extends State<WifiButton> {
 
   @override
   void initState() {
-    scanWifi();
     setState(() {
       localBool = widget.wifiState;
       if (widget.wifiState) {
