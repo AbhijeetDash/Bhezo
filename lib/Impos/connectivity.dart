@@ -6,6 +6,12 @@ import 'package:flutter/services.dart';
 class Reciever {
   static const platform = const MethodChannel('bhejo.flutter.dev/FUNCTIONS');
 
+  Future<bool> connectToWifi() async {
+    return await platform.invokeMethod("connectToWifi").then((value) {
+      return value;
+    });
+  }
+
   Future<bool> getWifiStatus() {
     return platform
         .invokeMethod('getWifiStatus')

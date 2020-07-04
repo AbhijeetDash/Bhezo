@@ -78,6 +78,7 @@ public class MainActivity extends FlutterActivity {
                         result.success(data);
                     }
 
+
                     // Main Wifi Code from here...
                     if(call.method.equals("getWifiStatus")){
                         // Tells if the wifi is on or off
@@ -89,7 +90,14 @@ public class MainActivity extends FlutterActivity {
                         changeWifiStatus();
                         result.success(true);
                     }
+
+                    if(call.method.equals("connectToWifi")){
+                        String ssid = call.argument("SSID");
+                        String passcode = call.argument("PASSCODE");
+                        result.success(connectToNetwork(ssid, passcode));
+                    }
                     
+
                     // Main Server Code...
                     if(call.method.equals("startServer")){
                         // We also need to start the server when we enable the HotSpot.
@@ -107,7 +115,6 @@ public class MainActivity extends FlutterActivity {
                         openSettings();
                     }
 
-                    // The main code to start the server and get the IP
                     if(call.method.equals("getCodeDetails")){
                         result.success(getIPServer());
                     }
@@ -121,6 +128,38 @@ public class MainActivity extends FlutterActivity {
                     }
                 }
             );
+    }
+
+    public boolean connectToNetwork(String ssid, String password){
+        try {
+            WifiConfiguration wfc = new WifiConfiguration();
+            wfc.SSID = "\"".concat(ssid).concat("\"");
+            wfc.status = WifiConfiguration.Status.DISABLED;
+            wfc.priority = 40;
+            wfc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+            wfc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+            wfc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
+            wfc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+            wfc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
+            wfc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+            wfc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
+            wfc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP40);
+            wfc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP104);
+            if (password.matches("-?[0-9a-fA-F]+")){
+                wfc.wepKeys[0] = password;
+            }else {
+                wfc.wepKeys[0] = "\"".concat(password).concat("\"");
+                wfc.wepTxKeyIndex = 0;
+            }
+            WifiManager wfMgr = (WifiManager) getBaseContext().getSystemService(Context.WIFI_SERVICE);
+            int networkId = wfMgr.addNetwork(wfc);
+            if (networkId != -1) {
+                wfMgr.enableNetwork(networkId, true);
+            } 
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // Variables must be private static.. as they are being used in 
@@ -179,14 +218,14 @@ public class MainActivity extends FlutterActivity {
                     InetAddress inetAddress = enumInetAddress.nextElement();
                     if (inetAddress.isSiteLocalAddress()) {
                         // All available Addresses that can be used as a Host Address..
-                        ip += "SiteLocalAddress: "+inetAddress.getHostAddress()+"\n";
+                        ip += inetAddress.getHostAddress()+"\n";
                     }
                 }
             }
             if(wap!=null){
                 // Getting the SSID and Passcode of LocalOnlyHotspot 
-                ip += "Passphrase : "+wap.preSharedKey+"\n";
-                ip += "SSID : "+wap.SSID;
+                ip += wap.preSharedKey+"\n";
+                ip += wap.SSID;
             }
         } catch (Exception e){
             e.printStackTrace();

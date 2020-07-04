@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:bhezo/pages/videoPLay.dart';
+import 'package:bhezo/utils/deco.dart';
 import 'package:bhezo/utils/getterVideos.dart';
 import 'package:bhezo/utils/mywid.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +53,11 @@ class _VideosState extends State<Videos> {
                                   .substring(0, 3) +
                               " Min"),
                           trailing: FolderSelector(path: {"Video": videos[i]}),
+                          onTap: () {
+                            Navigator.of(context).push(MaterialPageRoute(
+                                builder: (context) =>
+                                    VPlayer(path: videos[i].fullPath)));
+                          },
                         ),
                         Divider()
                       ],

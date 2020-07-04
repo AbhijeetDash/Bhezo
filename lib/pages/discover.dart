@@ -84,10 +84,25 @@ class _WifiButtonState extends State<WifiButton> {
   Widget name;
 
   Future<void> scanWifi() async {
-    return WifiFlutter.scanNetworks().then((value) {
-      print("Scanning");
+    // final net = await WifiFlutter.wifiNetworks;
+    // net.forEach((element) {
+    //   if (element.ssid.contains("AndroidShare")) {
+    //     print("found");
+    //     setState(() {
+    //       name = Text(
+    //         element.ssid + "\nTap to connect",
+    //         style: ThemeAssets().subtitleBlack,
+    //         textAlign: TextAlign.center,
+    //       );
+    //       nameBool = true;
+    //     });
+    //     return;
+    //   }
+    // });
+    return await WifiFlutter.scanNetworks().then((value) {
       final networks = value;
       networks.forEach((element) {
+        print("searching");
         if (element.ssid.contains("AndroidShare")) {
           print("found");
           setState(() {
@@ -98,18 +113,18 @@ class _WifiButtonState extends State<WifiButton> {
             );
             nameBool = true;
           });
+          return;
         }
       });
       return;
-    }).catchError((onError) {
-      setState(() {
-        nameBool = false;
-      });
     });
   }
 
   @override
   void initState() {
+    if (widget.wifiState) {
+      scanWifi();
+    }
     setState(() {
       localBool = widget.wifiState;
       if (widget.wifiState) {
@@ -145,7 +160,6 @@ class _WifiButtonState extends State<WifiButton> {
               child: IconButton(
                   icon: icon,
                   onPressed: () {
-                    scanWifi();
                     Reciever().changeWifiStatus().then((value) {});
                     setState(() {
                       localBool = !localBool;
@@ -155,8 +169,12 @@ class _WifiButtonState extends State<WifiButton> {
                       } else {
                         btnAlign = Alignment.centerLeft;
                         icon = Icon(Icons.signal_wifi_off);
+                        nameBool = false;
                       }
                     });
+                    if (localBool == true) {
+                      scanWifi();
+                    }
                   }),
             ),
           ),

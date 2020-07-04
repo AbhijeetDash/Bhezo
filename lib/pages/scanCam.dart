@@ -1,3 +1,4 @@
+import 'package:bhezo/utils/deco.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 
@@ -14,7 +15,45 @@ class _CamScanState extends State<CamScan> {
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
-      // Call connect.. and go to Send Page
+      List<String> details = scanData.split("\n");
+      showDialog(
+          context: context,
+          child: SizedBox(
+            width: 200,
+            height: 200,
+            child: Card(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    "Found",
+                    style: ThemeAssets().titleBlack,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 5),
+                  ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: details.length,
+                      itemBuilder: (builder, i) {
+                        return Text(
+                          details[i],
+                          style: ThemeAssets().subtitleBlack,
+                          textAlign: TextAlign.center,
+                        );
+                      }),
+                  SizedBox(height: 5),
+                  Text("connecting"),
+                  SizedBox(height: 5),
+                  Center(child: CircularProgressIndicator())
+                ],
+              ),
+            ),
+          ));
+      // call the connect function
+      controller.pauseCamera();
     });
   }
 
