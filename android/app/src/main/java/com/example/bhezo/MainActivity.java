@@ -22,23 +22,16 @@ import android.media.MediaMetadataRetriever;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.wifi.WifiManager;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
-import android.net.wifi.WifiManager.LocalOnlyHotspotReservation;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.ScanResult;
 import android.location.LocationManager;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import android.net.wifi.p2p.WifiP2pManager;
 
 //import 	android.net.wifi.SoftApConfiguration;
 
@@ -91,20 +84,7 @@ public class MainActivity extends FlutterActivity {
                         result.success(true);
                     }
 
-                    if(call.method.equals("connectToWifi")){
-                        String ssid = call.argument("SSID");
-                        String passcode = call.argument("PASSCODE");
-                        result.success(connectToNetwork(ssid, passcode));
-                    }
-                    
-
                     // Main Server Code...
-                    if(call.method.equals("startServer")){
-                        // We also need to start the server when we enable the HotSpot.
-                        // We must return the IP address and the passcode of the network..
-                        result.success(enableHotspot());
-                    }
-
                     if(call.method.equals("getLocationStatus")){
                         // Location must enabled before enabling LocalOnlyHotspot..
                         result.success(locationStatus());
@@ -114,155 +94,19 @@ public class MainActivity extends FlutterActivity {
                         // If location not enabled only then this happens..
                         openSettings();
                     }
-
-                    if(call.method.equals("getCodeDetails")){
-                        result.success(getIPServer());
-                    }
-
-                    if(call.method.equals("getIPClient")){
-                        result.success(getIpClient());
-                    }
-
-                    if(call.method.equals("startServer")){
-                        // This is actually the client side..
-                    }
                 }
             );
     }
 
-    public boolean connectToNetwork(String ssid, String password){
-        try {
-            WifiConfiguration wfc = new WifiConfiguration();
-            wfc.SSID = "\"".concat(ssid).concat("\"");
-            wfc.status = WifiConfiguration.Status.DISABLED;
-            wfc.priority = 40;
-            wfc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-            wfc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-            wfc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
-            wfc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-            wfc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
-            wfc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-            wfc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
-            wfc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP40);
-            wfc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP104);
-            if (password.matches("-?[0-9a-fA-F]+")){
-                wfc.wepKeys[0] = password;
-            }else {
-                wfc.wepKeys[0] = "\"".concat(password).concat("\"");
-                wfc.wepTxKeyIndex = 0;
-            }
-            WifiManager wfMgr = (WifiManager) getBaseContext().getSystemService(Context.WIFI_SERVICE);
-            int networkId = wfMgr.addNetwork(wfc);
-            if (networkId != -1) {
-                wfMgr.enableNetwork(networkId, true);
-            } 
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    // Variables must be private static.. as they are being used in 
-    // inner class callbacks..
-    private static LocalOnlyHotspotReservation mReservation;
-    private static WifiConfiguration wap;
-    private static String key; 
-    private static String ssid;
-    
-    public boolean enableHotspot(){
-        final WifiManager wifiManager = (WifiManager) getBaseContext().getSystemService(Context.WIFI_SERVICE);
-        if(wifiManager.isWifiEnabled()){
-            wifiManager.setWifiEnabled(false);          
-        }
-        wifiManager.startLocalOnlyHotspot(new LocalOnlyHotspotCallback() {
-            // This is automatically called when (The Hotspot is Created)
-            @Override
-            public void onStarted(final LocalOnlyHotspotReservation reservation) {
-                super.onStarted(reservation);
-                // LocalOnlyHotspotReservation.. contains..
-                // WifiConfiguration, SoftApConfiguration
-                mReservation = reservation;
-                wap = mReservation.getWifiConfiguration();
-                key = wap.preSharedKey;
-                ssid = wap.SSID;
-            }
-
-            // Automatically called when the Hotspot is deactivated..
-            @Override
-            public void onStopped() {
-                super.onStopped();
-                mReservation.close();
-            }
-
-            // Called on Error..
-            @Override
-            public void onFailed(final int reason) {
-                super.onFailed(reason);
-            }
-
-        }, new Handler());
-        return true;
-    }
-
-    public String getIPServer(){
-        String ip = "";
-        //Get the IP address of the server device...
-        try {
-            // List of all the NetworkInterfaces that are open at the moment..
-            Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface.getNetworkInterfaces();
-            while (enumNetworkInterfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = enumNetworkInterfaces.nextElement();
-                // List of all available INetAddress from Network Interface..
-                Enumeration<InetAddress> enumInetAddress = networkInterface.getInetAddresses();
-                while (enumInetAddress.hasMoreElements()) {
-                    InetAddress inetAddress = enumInetAddress.nextElement();
-                    if (inetAddress.isSiteLocalAddress()) {
-                        // All available Addresses that can be used as a Host Address..
-                        ip += inetAddress.getHostAddress()+"\n";
-                    }
-                }
-            }
-            if(wap!=null){
-                // Getting the SSID and Passcode of LocalOnlyHotspot 
-                ip += wap.preSharedKey+"\n";
-                ip += wap.SSID;
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-            ip += "Something Wrong! " + e.toString() + "\n";
-        }        
-        return ip;
-    }
-
-    // Don't know if client's IP address is needed or not..
-    // But this code does it anyway.. (:o)-|
-    public String getIpClient(){
-        try {
-            final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-            assert wifiManager != null;
-            final WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-            final int ipInt = wifiInfo.getIpAddress();
-            return InetAddress.getByAddress(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(ipInt).array()).getHostAddress();
-        } catch (Exception e) {
-            System.out.println(e);
-            return null;
-        }
-    }
-
-    // public void startServer(){
-    //     final Thread server = new Thread(new ServerThread());
-    //     yet to create the server thread
-    //     server.run();
-    // }
-    
     // this is also done..
     public boolean locationStatus(){
         final LocationManager location = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
         return location.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
     // Opens settings to enable location
-    public void openSettings(){
+    public boolean openSettings(){
         startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+        return true;
     }
 
     // gets the wifi status for UI update..
@@ -272,9 +116,10 @@ public class MainActivity extends FlutterActivity {
     }
 
     // changes the wifi status from ON-VV-OFF
-    public void changeWifiStatus(){
+    public boolean changeWifiStatus(){
         final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         wifiManager.setWifiEnabled(!wifiManager.isWifiEnabled());
+        return getWifiStatus();
     }
 
 

@@ -1,16 +1,12 @@
+import 'package:bhezo/utils/deco.dart';
 import 'package:flutter/material.dart';
 
-class Recieve extends StatefulWidget {
+class Send extends StatefulWidget {
   @override
-  _RecieveState createState() => _RecieveState();
+  _SendState createState() => _SendState();
 }
 
-class _RecieveState extends State<Recieve> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
+class _SendState extends State<Send> {
   @override
   Widget build(BuildContext context) {
     double width = MediaQuery.of(context).size.width;
@@ -19,6 +15,7 @@ class _RecieveState extends State<Recieve> {
       body: Container(
         width: width,
         height: height,
+        color: ThemeAssets().lightAccent,
       ),
     );
   }

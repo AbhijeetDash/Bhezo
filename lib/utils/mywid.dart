@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:bhezo/Impos/connectivity.dart';
 import 'package:bhezo/Impos/selected.dart';
-import 'package:bhezo/pages/createSpot.dart';
 import 'package:bhezo/pages/discover.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
@@ -360,27 +359,29 @@ class SendRecieveButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          SizedBox(width: 5),
           RawMaterialButton(
             onPressed: () {
               Navigator.of(context).pushReplacement(PageRouteBuilder(
                   pageBuilder: (a, b, c) {
-                    return HotSpot();
+                    return Discover(
+                      wayToGo: "SEND",
+                    );
                   },
                   transitionDuration: Duration(milliseconds: 500)));
             },
             shape: StadiumBorder(),
             fillColor: ThemeAssets().darkAccent,
-            child: Hero(
-                tag: "DiscoverPage",
-                key: Key("DiscoverPage"),
-                child: Text("Send")),
+            child: Text("Send"),
           ),
           SizedBox(width: 5),
           RawMaterialButton(
             onPressed: () {
               Navigator.of(context).pushReplacement(PageRouteBuilder(
                   pageBuilder: (a, b, c) {
-                    return Discover();
+                    return Discover(
+                      wayToGo: "RECIEVE",
+                    );
                   },
                   transitionDuration: Duration(milliseconds: 500)));
             },
@@ -388,7 +389,6 @@ class SendRecieveButton extends StatelessWidget {
             fillColor: ThemeAssets().darkAccent,
             child: Text("Recieve"),
           ),
-          SizedBox(width: 5),
         ],
       ),
     );

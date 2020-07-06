@@ -1,22 +1,170 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:bhezo/Impos/connectivity.dart';
-import 'package:bhezo/pages/scanCam.dart';
+import 'package:bhezo/pages/location.dart';
+import 'package:bhezo/pages/recieve.dart';
+import 'package:bhezo/pages/send.dart';
 import 'package:bhezo/utils/deco.dart';
 import 'package:flare_flutter/flare_actor.dart';
 import 'package:flutter/material.dart';
 import 'package:flare_dart/actor.dart';
+import 'package:flutter_p2p/gen/protos/protos.pb.dart';
 import 'package:wifi_flutter/wifi_flutter.dart';
+import 'package:flutter_p2p/flutter_p2p.dart';
 
 class Discover extends StatefulWidget {
+  final String wayToGo;
+  const Discover({@required this.wayToGo});
   @override
   _DiscoverState createState() => _DiscoverState();
 }
 
-class _DiscoverState extends State<Discover> {
+class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  var _deviceAddress = "";
+  var _isConnected = false;
+  var _isHost = false;
+  var _isOpen = false;
   bool wifiState = false;
+  Alignment wifiBtnAlignment = Alignment.centerLeft;
+
+  P2pSocket _socket;
+  List<WifiP2pDevice> devices = [];
+  List<StreamSubscription> _subscriptions = [];
 
   @override
   void initState() {
+    // Set Wifi State
+    Reciever().getWifiStatus().then((value) {
+      setState(() {
+        wifiState = value;
+      });
+    });
+    Timer(Duration(seconds: 1), () {
+      if (!_isConnected && wifiState) {
+        print("Discovering");
+        FlutterP2p.discoverDevices();
+      }
+    });
     super.initState();
+    _register();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _register();
+    } else if (state == AppLifecycleState.paused) {
+      _unregister();
+    }
+  }
+
+  void _register() async {
+    if (!await _checkPermission()) {
+      return;
+    }
+    _subscriptions.add(FlutterP2p.wifiEvents.stateChange.listen((change) {
+      print("stateChange: ${change.isEnabled}");
+    }));
+
+    _subscriptions.add(FlutterP2p.wifiEvents.connectionChange.listen((change) {
+      setState(() {
+        _isConnected = change.networkInfo.isConnected;
+        _isHost = change.wifiP2pInfo.isGroupOwner;
+        _deviceAddress = change.wifiP2pInfo.groupOwnerAddress;
+      });
+      print(
+          "connectionChange: ${change.wifiP2pInfo.isGroupOwner}, Connected: ${change.networkInfo.isConnected}");
+    }));
+
+    _subscriptions.add(FlutterP2p.wifiEvents.thisDeviceChange.listen((change) {
+      print(
+          "deviceChange: ${change.deviceName} / ${change.deviceAddress} / ${change.primaryDeviceType} / ${change.secondaryDeviceType} ${change.isGroupOwner ? 'GO' : '-GO'}");
+    }));
+
+    _subscriptions.add(FlutterP2p.wifiEvents.discoveryChange.listen((change) {
+      print("discoveryStateChange: ${change.isDiscovering}");
+    }));
+
+    _subscriptions.add(FlutterP2p.wifiEvents.peersChange.listen((change) {
+      setState(() {
+        devices = change.devices;
+      });
+    }));
+
+    FlutterP2p.register();
+  }
+
+  void _unregister() {
+    _subscriptions.forEach((subscription) => subscription.cancel());
+    FlutterP2p.unregister();
+  }
+
+  void _openPortAndAccept(int port) async {
+    if (!_isOpen) {
+      var socket = await FlutterP2p.openHostPort(port);
+      setState(() {
+        _socket = socket;
+      });
+
+      var buffer = "";
+      socket.inputStream.listen((data) {
+        var msg = String.fromCharCodes(data.data);
+        buffer += msg;
+        if (data.dataAvailable == 0) {
+          snackBar(
+              "Data Received from ${_isHost ? "Client" : "Host"}: $buffer");
+          socket.writeString("Successfully received: $buffer");
+          buffer = "";
+        }
+      });
+
+      print("_openPort done");
+      _isOpen = await FlutterP2p.acceptPort(port);
+      print("_accept done: $_isOpen");
+    }
+  }
+
+  _connectToPort(int port) async {
+    var socket = await FlutterP2p.connectToHost(
+      _deviceAddress,
+      port,
+      timeout: 100000,
+    );
+
+    setState(() {
+      _socket = socket;
+    });
+
+    _socket.inputStream.listen((data) {
+      var msg = utf8.decode(data.data);
+      snackBar("Received from ${_isHost ? "Host" : "Client"} $msg");
+    });
+
+    print("_connectToPort done");
+  }
+
+  Future<bool> _checkPermission() async {
+    if (!await FlutterP2p.isLocationPermissionGranted()) {
+      await FlutterP2p.requestLocationPermission();
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> _disconnect() async {
+    bool result = await FlutterP2p.removeGroup();
+    _socket = null;
+    if (result) _isOpen = false;
+    return result;
   }
 
   @override
@@ -24,250 +172,199 @@ class _DiscoverState extends State<Discover> {
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
+      key: _scaffoldKey,
       body: Container(
         width: width,
         height: height,
         color: ThemeAssets().lightAccent,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(top: 28.0, bottom: 5),
-              child: Hero(
-                  tag: "DiscoverPage",
-                  key: Key("DiscoverPage"),
-                  child: Text(
-                    "Discover",
-                    style: ThemeAssets().titleBlack,
-                  )),
-            ),
             Text(
-              "Turn your wifi ON and\nfind nearby device to connect",
+              "Discover",
+              style: ThemeAssets().titleBlack,
+            ),
+            SizedBox(height: 5),
+            Text(
+              "Please enable WIFI to connect to device\nand start sharing",
               style: ThemeAssets().subtitleBlack,
               textAlign: TextAlign.center,
             ),
-            Padding(
-              padding: const EdgeInsets.all(30.0),
-              child: FutureBuilder(
-                future: Reciever().getWifiStatus(),
-                builder: (context, snap) {
-                  if (snap.data == null) {
-                    return Center(child: Text("Getting wifi Status"));
-                  } else {
-                    wifiState = snap.data;
-                    return WifiButton(wifiState: wifiState);
-                  }
-                },
+            SizedBox(
+              height: 100,
+              width: width,
+              child: Center(
+                child: AnimatedContainer(
+                  width: 110,
+                  height: 50,
+                  alignment:
+                      !wifiState ? Alignment.centerLeft : Alignment.centerRight,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.bounceOut,
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(5, 2, 5, 2),
+                    child: CircleAvatar(
+                      backgroundColor: ThemeAssets().darkAccent,
+                      child: IconButton(
+                          icon: Icon(
+                            !wifiState ? Icons.signal_wifi_off : Icons.wifi,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            // enable Wifi and Change state
+                            Reciever().changeWifiStatus().then((value) {
+                              print(value);
+                              setState(() {
+                                wifiState = !wifiState;
+                              });
+                              Timer(Duration(seconds: 1), () {
+                                if (wifiState == true && !_isConnected) {
+                                  print("Discovering");
+                                  FlutterP2p.discoverDevices();
+                                }
+                              });
+                            });
+                          }),
+                    ),
+                  ),
+                ),
               ),
             ),
+            Container(
+              width: width * 0.8,
+              height: height * 0.4,
+              child: wifiState
+                  ? Card(
+                      elevation: 10,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: <Widget>[
+                          Center(
+                            child: SizedBox(
+                              width: width * 0.4,
+                              height: width * 0.4,
+                              child: FlareActor(
+                                'assets/Connecting_Ripple.flr',
+                                animation: 'Untitled',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          devices.length > 0
+                              ? ListView(
+                                  shrinkWrap: true,
+                                  children: this.devices.map((d) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: <Widget>[
+                                          CircleAvatar(
+                                            radius: 30,
+                                            child: IconButton(
+                                                icon: Icon(Icons.android),
+                                                onPressed: () {
+                                                  if (_isConnected) {
+                                                    if (widget.wayToGo ==
+                                                        "SEND") {
+                                                      Navigator.of(context)
+                                                          .pushReplacement(
+                                                              MaterialPageRoute(
+                                                                  builder:
+                                                                      (context) =>
+                                                                          Send()));
+                                                    }
+                                                    if (widget.wayToGo ==
+                                                        "RECIEVE") {
+                                                      Navigator.of(context)
+                                                          .pushReplacement(
+                                                              MaterialPageRoute(
+                                                                  builder:
+                                                                      (context) =>
+                                                                          Recieve()));
+                                                    }
+                                                  } else {
+                                                    FlutterP2p.connect(d)
+                                                        .then((value) {
+                                                      if (widget.wayToGo ==
+                                                          "SEND") {
+                                                        Navigator.of(context)
+                                                            .pushReplacement(
+                                                                MaterialPageRoute(
+                                                                    builder:
+                                                                        (context) =>
+                                                                            Send()));
+                                                      }
+                                                      if (widget.wayToGo ==
+                                                          "RECIEVE") {
+                                                        Navigator.of(context)
+                                                            .pushReplacement(
+                                                                MaterialPageRoute(
+                                                                    builder:
+                                                                        (context) =>
+                                                                            Recieve()));
+                                                      }
+                                                    });
+                                                  }
+                                                }),
+                                          ),
+                                          SizedBox(height: 2),
+                                          Text(d.deviceName)
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                )
+                              : Container(),
+                        ],
+                      ),
+                    )
+                  : Card(
+                      elevation: 10,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      child: Center(
+                        child: Container(
+                          width: width * 0.4,
+                          height: width * 0.4,
+                          child: FlareActor(
+                            'assets/NO_Wifi.flr',
+                            animation: 'init',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            SizedBox(height: height * 0.05),
+            Text("Tap on the required device to connect")
           ],
         ),
       ),
     );
   }
-}
 
-class WifiButton extends StatefulWidget {
-  WifiButton({Key key, @required this.wifiState}) : super(key: key);
-  bool wifiState = false;
-  @override
-  _WifiButtonState createState() => _WifiButtonState();
-}
-
-class _WifiButtonState extends State<WifiButton> {
-  Alignment btnAlign = Alignment.centerLeft;
-  Widget icon = Icon(Icons.signal_wifi_off);
-  bool localBool = false;
-
-  bool nameBool = false;
-  Widget name;
-
-  Future<void> scanWifi() async {
-    // final net = await WifiFlutter.wifiNetworks;
-    // net.forEach((element) {
-    //   if (element.ssid.contains("AndroidShare")) {
-    //     print("found");
-    //     setState(() {
-    //       name = Text(
-    //         element.ssid + "\nTap to connect",
-    //         style: ThemeAssets().subtitleBlack,
-    //         textAlign: TextAlign.center,
-    //       );
-    //       nameBool = true;
-    //     });
-    //     return;
-    //   }
-    // });
-    return await WifiFlutter.scanNetworks().then((value) {
-      final networks = value;
-      networks.forEach((element) {
-        print("searching");
-        if (element.ssid.contains("AndroidShare")) {
-          print("found");
-          setState(() {
-            name = Text(
-              element.ssid + "\nTap to connect",
-              style: ThemeAssets().subtitleBlack,
-              textAlign: TextAlign.center,
-            );
-            nameBool = true;
-          });
-          return;
-        }
-      });
-      return;
-    });
-  }
-
-  @override
-  void initState() {
-    if (widget.wifiState) {
-      scanWifi();
-    }
-    setState(() {
-      localBool = widget.wifiState;
-      if (widget.wifiState) {
-        btnAlign = Alignment.centerRight;
-        icon = Icon(Icons.wifi);
-      }
-    });
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    double width = MediaQuery.of(context).size.width;
-    double height = MediaQuery.of(context).size.height;
-    return Column(
-      children: <Widget>[
-        AnimatedContainer(
-          height: 60,
-          width: 120,
-          curve: Curves.bounceOut,
-          duration: Duration(milliseconds: 200),
-          alignment: btnAlign,
-          decoration: BoxDecoration(
-              color: ThemeAssets().darkAccent,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: <BoxShadow>[
-                BoxShadow(blurRadius: 15, spreadRadius: -5)
-              ]),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: CircleAvatar(
-              radius: 25,
-              child: IconButton(
-                  icon: icon,
-                  onPressed: () {
-                    Reciever().changeWifiStatus().then((value) {});
-                    setState(() {
-                      localBool = !localBool;
-                      if (localBool) {
-                        btnAlign = Alignment.centerRight;
-                        icon = Icon(Icons.wifi);
-                      } else {
-                        btnAlign = Alignment.centerLeft;
-                        icon = Icon(Icons.signal_wifi_off);
-                        nameBool = false;
-                      }
-                    });
-                    if (localBool == true) {
-                      scanWifi();
-                    }
-                  }),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 28.0),
-          child: Container(
-            width: width * 0.8,
-            height: height * 0.4,
-            child: Card(
-                elevation: 10,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
-                child: Center(
-                    child: localBool
-                        ? Stack(
-                            alignment: Alignment.center,
-                            children: <Widget>[
-                              FlareActor(
-                                'assets/Connecting_Ripple.flr',
-                                animation: "Untitled",
-                              ),
-                              nameBool == false
-                                  ? CircleAvatar(
-                                      radius: 30,
-                                      backgroundColor: ThemeAssets().darkAccent,
-                                      child: IconButton(
-                                          icon: Icon(
-                                            Icons.crop_free,
-                                            color: Colors.white,
-                                          ),
-                                          onPressed: () {
-                                            Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        CamScan()));
-                                          }))
-                                  : RawMaterialButton(
-                                      shape: StadiumBorder(),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: <Widget>[
-                                          CircleAvatar(
-                                            radius: 30,
-                                            backgroundColor:
-                                                ThemeAssets().darkAccent,
-                                            child: IconButton(
-                                                icon: Icon(
-                                                  Icons.crop_free,
-                                                  color: Colors.white,
-                                                ),
-                                                onPressed: () {
-                                                  Navigator.of(context).push(
-                                                      MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              CamScan()));
-                                                }),
-                                          ),
-                                          SizedBox(width: 10),
-                                          Container(
-                                              decoration: BoxDecoration(
-                                                  color:
-                                                      ThemeAssets().darkAccent,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          30)),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(18.0),
-                                                child: name,
-                                              )),
-                                          SizedBox(width: 10),
-                                        ],
-                                      ),
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (context) =>
-                                                    CamScan()));
-                                      },
-                                    )
-                            ],
-                          )
-                        : Container(
-                            width: 200,
-                            height: 200,
-                            child: FlareActor('assets/NO_Wifi.flr',
-                                animation: "init")))),
-          ),
-        )
-      ],
+  snackBar(String text) {
+    _scaffoldKey.currentState.showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 }
+
+// onTap: () {
+// print(
+// "${_isConnected ? "Disconnect" : "Connect"} to device: $_deviceAddress");
+// return _isConnected
+// ? FlutterP2p.cancelConnect(d)
+// : FlutterP2p.connect(d);
+// },
