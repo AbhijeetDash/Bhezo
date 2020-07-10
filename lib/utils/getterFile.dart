@@ -5,14 +5,14 @@ import 'package:flutter/services.dart';
 class DeviceFolders {
   static const platform = const MethodChannel('bhejo.flutter.dev/FUNCTIONS');
 
-  static Future<List<File>> getDeviceFiles() async {
+  static Future<List<MyFile>> getDeviceFiles() async {
     return platform.invokeMethod('getFolders').then((files) {
-      List<File> list = new List();
+      List<MyFile> list = new List();
       if (files != null && files is List) {
         for (var element in files) {
           if (element is Map) {
             try {
-              list.add(File(element));
+              list.add(MyFile(element));
             } catch (e) {
               if (e is AssertionError) {
                 print(
@@ -29,19 +29,19 @@ class DeviceFolders {
       }
     }).catchError((onError) {
       print(onError);
-      return List<File>(0);
+      return List<MyFile>(0);
     });
   }
 
-  static Future<List<File>> getFolderAtPath(String path) async {
+  static Future<List<MyFile>> getFolderAtPath(String path) async {
     return platform
         .invokeMethod('getFolderAtPath', {'path': path}).then((files) {
-      List<File> list = new List();
+      List<MyFile> list = new List();
       if (files != null && files is List) {
         for (var element in files) {
           if (element is Map) {
             try {
-              list.add(File(element));
+              list.add(MyFile(element));
             } catch (e) {
               if (e is AssertionError) {
                 print(
@@ -58,21 +58,21 @@ class DeviceFolders {
       }
     }).catchError((onError) {
       print(onError);
-      return List<File>(0);
+      return List<MyFile>(0);
     });
   }
 }
 
-class File {
+class MyFile {
   final String fileName;
   final String filePath;
   final bool isDirectory;
 
-  factory File(Map map) {
-    return File._fromMap(map);
+  factory MyFile(Map map) {
+    return MyFile._fromMap(map);
   }
 
-  File._fromMap(Map map)
+  MyFile._fromMap(Map map)
       : assert(map["file_name"] != null),
         assert(map["file_path"] != null),
         assert(map['isDir'] != null),

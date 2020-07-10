@@ -21,7 +21,8 @@ dependencies:
   wifi_flutter: ^0.1.0+1
   video_player: ^0.10.11+2
   flutter_p2p: ^0.1.1
-
+  path_provider: ^1.6.11
+  
   
 dev_dependencies:
   flutter_test:

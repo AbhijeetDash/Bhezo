@@ -2,20 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:bhezo/Impos/connectivity.dart';
+import 'package:bhezo/Impos/selected.dart';
 import 'package:bhezo/pages/location.dart';
 import 'package:bhezo/pages/recieve.dart';
 import 'package:bhezo/pages/send.dart';
 import 'package:bhezo/utils/deco.dart';
+import 'package:bhezo/utils/mywid.dart';
 import 'package:flare_flutter/flare_actor.dart';
 import 'package:flutter/material.dart';
-import 'package:flare_dart/actor.dart';
 import 'package:flutter_p2p/gen/protos/protos.pb.dart';
-import 'package:wifi_flutter/wifi_flutter.dart';
 import 'package:flutter_p2p/flutter_p2p.dart';
 
 class Discover extends StatefulWidget {
   final String wayToGo;
-  const Discover({@required this.wayToGo});
+  final Selections selection;
+  const Discover({@required this.wayToGo, @required this.selection});
   @override
   _DiscoverState createState() => _DiscoverState();
 }
@@ -74,7 +75,6 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
     _subscriptions.add(FlutterP2p.wifiEvents.stateChange.listen((change) {
       print("stateChange: ${change.isEnabled}");
     }));
-
     _subscriptions.add(FlutterP2p.wifiEvents.connectionChange.listen((change) {
       setState(() {
         _isConnected = change.networkInfo.isConnected;
@@ -83,23 +83,32 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
       });
       print(
           "connectionChange: ${change.wifiP2pInfo.isGroupOwner}, Connected: ${change.networkInfo.isConnected}");
+      if (_isConnected) {
+        if (widget.wayToGo == "SEND") {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (context) => Send(
+                    selections: selections,
+                    subscription: _subscriptions,
+                  )));
+        }
+        if (widget.wayToGo == "RECIEVE") {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (context) => Recieve(deviceAddress: _deviceAddress)));
+        }
+      }
     }));
-
     _subscriptions.add(FlutterP2p.wifiEvents.thisDeviceChange.listen((change) {
       print(
           "deviceChange: ${change.deviceName} / ${change.deviceAddress} / ${change.primaryDeviceType} / ${change.secondaryDeviceType} ${change.isGroupOwner ? 'GO' : '-GO'}");
     }));
-
     _subscriptions.add(FlutterP2p.wifiEvents.discoveryChange.listen((change) {
       print("discoveryStateChange: ${change.isDiscovering}");
     }));
-
     _subscriptions.add(FlutterP2p.wifiEvents.peersChange.listen((change) {
       setState(() {
         devices = change.devices;
       });
     }));
-
     FlutterP2p.register();
   }
 
@@ -108,47 +117,19 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
     FlutterP2p.unregister();
   }
 
-  void _openPortAndAccept(int port) async {
-    if (!_isOpen) {
-      var socket = await FlutterP2p.openHostPort(port);
-      setState(() {
-        _socket = socket;
-      });
-
-      var buffer = "";
-      socket.inputStream.listen((data) {
-        var msg = String.fromCharCodes(data.data);
-        buffer += msg;
-        if (data.dataAvailable == 0) {
-          snackBar(
-              "Data Received from ${_isHost ? "Client" : "Host"}: $buffer");
-          socket.writeString("Successfully received: $buffer");
-          buffer = "";
-        }
-      });
-
-      print("_openPort done");
-      _isOpen = await FlutterP2p.acceptPort(port);
-      print("_accept done: $_isOpen");
-    }
-  }
-
   _connectToPort(int port) async {
     var socket = await FlutterP2p.connectToHost(
       _deviceAddress,
       port,
       timeout: 100000,
     );
-
     setState(() {
       _socket = socket;
     });
-
     _socket.inputStream.listen((data) {
       var msg = utf8.decode(data.data);
       snackBar("Received from ${_isHost ? "Host" : "Client"} $msg");
     });
-
     print("_connectToPort done");
   }
 
@@ -215,17 +196,10 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
                             color: Colors.black,
                           ),
                           onPressed: () {
-                            // enable Wifi and Change state
                             Reciever().changeWifiStatus().then((value) {
                               print(value);
                               setState(() {
                                 wifiState = !wifiState;
-                              });
-                              Timer(Duration(seconds: 1), () {
-                                if (wifiState == true && !_isConnected) {
-                                  print("Discovering");
-                                  FlutterP2p.discoverDevices();
-                                }
                               });
                             });
                           }),
@@ -246,14 +220,33 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
                         alignment: Alignment.center,
                         children: <Widget>[
                           Center(
-                            child: SizedBox(
-                              width: width * 0.4,
-                              height: width * 0.4,
-                              child: FlareActor(
-                                'assets/Connecting_Ripple.flr',
-                                animation: 'Untitled',
-                                fit: BoxFit.cover,
-                              ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                SizedBox(
+                                  width: width * 0.4,
+                                  height: width * 0.4,
+                                  child: FlareActor(
+                                    'assets/Connecting_Ripple.flr',
+                                    animation: 'Untitled',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                SizedBox(height: 5),
+                                RawMaterialButton(
+                                    fillColor: ThemeAssets().darkAccent,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text("Scan Devices"),
+                                    ),
+                                    shape: StadiumBorder(),
+                                    onPressed: () {
+                                      if (wifiState == true && !_isConnected) {
+                                        print("Discovering");
+                                        FlutterP2p.discoverDevices();
+                                      }
+                                    })
+                              ],
                             ),
                           ),
                           devices.length > 0
@@ -271,48 +264,7 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
                                             child: IconButton(
                                                 icon: Icon(Icons.android),
                                                 onPressed: () {
-                                                  if (_isConnected) {
-                                                    if (widget.wayToGo ==
-                                                        "SEND") {
-                                                      Navigator.of(context)
-                                                          .pushReplacement(
-                                                              MaterialPageRoute(
-                                                                  builder:
-                                                                      (context) =>
-                                                                          Send()));
-                                                    }
-                                                    if (widget.wayToGo ==
-                                                        "RECIEVE") {
-                                                      Navigator.of(context)
-                                                          .pushReplacement(
-                                                              MaterialPageRoute(
-                                                                  builder:
-                                                                      (context) =>
-                                                                          Recieve()));
-                                                    }
-                                                  } else {
-                                                    FlutterP2p.connect(d)
-                                                        .then((value) {
-                                                      if (widget.wayToGo ==
-                                                          "SEND") {
-                                                        Navigator.of(context)
-                                                            .pushReplacement(
-                                                                MaterialPageRoute(
-                                                                    builder:
-                                                                        (context) =>
-                                                                            Send()));
-                                                      }
-                                                      if (widget.wayToGo ==
-                                                          "RECIEVE") {
-                                                        Navigator.of(context)
-                                                            .pushReplacement(
-                                                                MaterialPageRoute(
-                                                                    builder:
-                                                                        (context) =>
-                                                                            Recieve()));
-                                                      }
-                                                    });
-                                                  }
+                                                  FlutterP2p.connect(d);
                                                 }),
                                           ),
                                           SizedBox(height: 2),

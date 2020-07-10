@@ -71,7 +71,16 @@ class _AnimatedOptionsState extends State<AnimatedOptions> {
                     onPressed: () {},
                     child: Text(
                       "PC Share",
-                      style: ThemeAssets().subtitleWhite,
+                      style: ThemeAssets().subtitle,
+                    ))),
+            Expanded(
+                flex: 1,
+                child: FlatButton(
+                    shape: StadiumBorder(),
+                    onPressed: () {},
+                    child: Text(
+                      "History",
+                      style: ThemeAssets().subtitle,
                     ))),
             Expanded(
                 flex: 1,
@@ -80,7 +89,7 @@ class _AnimatedOptionsState extends State<AnimatedOptions> {
                     onPressed: () {},
                     child: Text(
                       "Share our App",
-                      style: ThemeAssets().subtitleWhite,
+                      style: ThemeAssets().subtitle,
                     ))),
             Expanded(
                 flex: 1,
@@ -89,13 +98,23 @@ class _AnimatedOptionsState extends State<AnimatedOptions> {
                     onPressed: () {},
                     child: Text(
                       "Settings",
-                      style: ThemeAssets().subtitleWhite,
+                      style: ThemeAssets().subtitle,
                     ))),
             Expanded(
                 flex: 1,
                 child: FlatButton(
                     shape: StadiumBorder(),
-                    onPressed: () {},
+                    onPressed: () {
+                      showAboutDialog(
+                          context: context,
+                          applicationIcon: Container(
+                            decoration: BoxDecoration(
+                                image: DecorationImage(
+                                    image: AssetImage('assets/BLogo.png'))),
+                          ),
+                          applicationName: "Bhezo",
+                          applicationLegalese: "Incube Inc.");
+                    },
                     child: Text(
                       "About us",
                       style: ThemeAssets().subtitleWhite,
@@ -229,7 +248,7 @@ class _CustomAppCardState extends State<CustomAppCard> {
                             SizedBox(width: 10),
                             RawMaterialButton(
                               onPressed: () {
-                                //Send Code Goes Here
+                                Navigator.of(context).pop();
                               },
                               shape: StadiumBorder(),
                               fillColor: ThemeAssets().darkAccent,
