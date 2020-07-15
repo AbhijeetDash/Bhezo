@@ -37,6 +37,7 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
   @override
   void initState() {
     // Set Wifi State
+    print("Discover Says ${widget.selection.allSelections}");
     Reciever().getWifiStatus().then((value) {
       setState(() {
         wifiState = value;
@@ -59,14 +60,14 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _register();
-    } else if (state == AppLifecycleState.paused) {
-      _unregister();
-    }
-  }
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   if (state == AppLifecycleState.resumed) {
+  //     _register();
+  //   } else if (state == AppLifecycleState.paused) {
+  //     _unregister();
+  //   }
+  // }
 
   void _register() async {
     if (!await _checkPermission()) {
@@ -87,13 +88,16 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
         if (widget.wayToGo == "SEND") {
           Navigator.of(context).pushReplacement(MaterialPageRoute(
               builder: (context) => Send(
-                    selections: selections,
+                    selections: widget.selection,
+                    isHost: _isHost,
                     subscription: _subscriptions,
+                    deviceAddress: _deviceAddress,
                   )));
         }
         if (widget.wayToGo == "RECIEVE") {
           Navigator.of(context).pushReplacement(MaterialPageRoute(
-              builder: (context) => Recieve(deviceAddress: _deviceAddress)));
+              builder: (context) =>
+                  Recieve(deviceAddress: _deviceAddress, isHost: _isHost)));
         }
       }
     }));
@@ -112,26 +116,26 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
     FlutterP2p.register();
   }
 
-  void _unregister() {
-    _subscriptions.forEach((subscription) => subscription.cancel());
-    FlutterP2p.unregister();
-  }
+  // void _unregister() {
+  //   _subscriptions.forEach((subscription) => subscription.cancel());
+  //   FlutterP2p.unregister();
+  // }
 
-  _connectToPort(int port) async {
-    var socket = await FlutterP2p.connectToHost(
-      _deviceAddress,
-      port,
-      timeout: 100000,
-    );
-    setState(() {
-      _socket = socket;
-    });
-    _socket.inputStream.listen((data) {
-      var msg = utf8.decode(data.data);
-      snackBar("Received from ${_isHost ? "Host" : "Client"} $msg");
-    });
-    print("_connectToPort done");
-  }
+  // _connectToPort(int port) async {
+  //   var socket = await FlutterP2p.connectToHost(
+  //     _deviceAddress,
+  //     port,
+  //     timeout: 100000,
+  //   );
+  //   setState(() {
+  //     _socket = socket;
+  //   });
+  //   _socket.inputStream.listen((data) {
+  //     var msg = utf8.decode(data.data);
+  //     snackBar("Received from ${_isHost ? "Host" : "Client"} $msg");
+  //   });
+  //   print("_connectToPort done");
+  // }
 
   Future<bool> _checkPermission() async {
     if (!await FlutterP2p.isLocationPermissionGranted()) {
@@ -268,7 +272,10 @@ class _DiscoverState extends State<Discover> with WidgetsBindingObserver {
                                                 }),
                                           ),
                                           SizedBox(height: 2),
-                                          Text(d.deviceName)
+                                          Container(
+                                              color: ThemeAssets().lightAccent,
+                                              padding: EdgeInsets.all(5),
+                                              child: Text(d.deviceName))
                                         ],
                                       ),
                                     );

@@ -385,6 +385,7 @@ class SendRecieveButton extends StatelessWidget {
                   pageBuilder: (a, b, c) {
                     return Discover(
                       wayToGo: "SEND",
+                      selection: selections,
                     );
                   },
                   transitionDuration: Duration(milliseconds: 500)));
@@ -400,6 +401,7 @@ class SendRecieveButton extends StatelessWidget {
                   pageBuilder: (a, b, c) {
                     return Discover(
                       wayToGo: "RECIEVE",
+                      selection: selections,
                     );
                   },
                   transitionDuration: Duration(milliseconds: 500)));

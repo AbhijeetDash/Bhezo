@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:bhezo/utils/getterFile.dart';
@@ -7,44 +8,61 @@ import 'package:flutter_p2p/flutter_p2p.dart';
 
 class Recieve extends StatefulWidget {
   final String deviceAddress;
-  const Recieve({Key key, this.deviceAddress}) : super(key: key);
+  final isHost;
+  const Recieve({Key key, @required this.deviceAddress, @required this.isHost})
+      : super(key: key);
   @override
   _RecieveState createState() => _RecieveState();
 }
 
 class _RecieveState extends State<Recieve> {
-  @override
-  void initState() {
-    super.initState();
+  List<Widget> recieved = [];
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  P2pSocket _socket;
+
+  Future<void> writeFile(Uint8List data) async {
+    getExternalStorageDirectory().then((dir) {
+      String path = dir.path;
+      print(path);
+      File f = File("$path/base.apk");
+      f.writeAsBytes(data);
+    });
   }
 
-  void startRecieve(int port) async {
-    var socket = await FlutterP2p.connectToHost(
-      widget.deviceAddress,
-      port,
-      timeout: 100000,
-    );
-    socket.inputStream.listen((event) {
+  void connectAndRecieve(int port) async {
+    if (widget.isHost) {
+      var socket = await FlutterP2p.openHostPort(port);
+      setState(() {
+        _socket = socket;
+      });
+      Uint8List dd;
+      socket.inputStream.listen((event) {
+        dd += event.data;
+        if (!event.hasData()) {
+          print("\nNO DATA saving\n");
+          writeFile(dd);
+        }
+      });
+      FlutterP2p.acceptPort(port);
+    } else {
+      var socket = await FlutterP2p.connectToHost(
+        widget.deviceAddress, // see above `Connect to a device`
+        port,
+      );
       var msg = "";
-      msg += String.fromCharCodes(event.data);
-      if (event.dataAvailable == 0) {
-        showDialog(
-            context: context,
-            child: Card(
-              child: SizedBox(
-                height: 200,
-                width: 200,
-                child: Text(msg),
-              ),
-            ));
-      }
-      // if (event.hasData()) {
-      //   setState(() {
-      //     // Update UI;
-      //   });
-      // }
-      // File.fromUri(Uri.parse("../")).writeAsBytes(event.data);
-    });
+      socket.inputStream.listen((event) {
+        msg += "${event.data}";
+        if (!event.hasData()) {
+          print("\nNO DATA saving\n");
+        }
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    connectAndRecieve(8888);
+    super.initState();
   }
 
   @override
@@ -53,8 +71,18 @@ class _RecieveState extends State<Recieve> {
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
       body: Container(
-        width: width,
-        height: height,
+          width: width,
+          height: height,
+          alignment: Alignment.center,
+          child: Text("Nothing to recieve")),
+    );
+  }
+
+  snackBar(String text) {
+    _scaffoldKey.currentState.showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: Duration(seconds: 2),
       ),
     );
   }
