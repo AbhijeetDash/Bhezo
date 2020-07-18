@@ -13,8 +13,15 @@ import 'package:flutter_p2p/flutter_p2p.dart';
 
 class Send extends StatefulWidget {
   final List<StreamSubscription> subscription;
+  final isHost;
   final Selections selections;
-  const Send({Key key, @required this.subscription, @required this.selections})
+  final String deviceAddress;
+  const Send(
+      {Key key,
+      @required this.isHost,
+      @required this.deviceAddress,
+      @required this.subscription,
+      @required this.selections})
       : super(key: key);
   @override
   _SendState createState() => _SendState();
@@ -23,20 +30,23 @@ class Send extends StatefulWidget {
 class _SendState extends State<Send> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   var _isOpen = false;
-  var _isHost = false;
   P2pSocket _socket;
 
-  List<bool> listBool = [];
-
-  Future<bool> progress() async {
-    widget.selections.checkList.forEach((element) {
-      listBool.add(false);
-    });
-    return true;
+  Future<void> sendFile(Map<String, Object> element) {
+    try {
+      Application app = element['Application'];
+      File file = File(app.apkFilePath);
+      file.openRead().forEach((element) {
+        Uint8List dd = Uint8List.fromList(element);
+        _socket.write(dd);
+      });
+    } catch (e) {
+      print(e);
+    }
   }
 
-  void sendData(int port) async {
-    try {
+  void openAndAccept(int port) async {
+    if (widget.isHost) {
       var socket = await FlutterP2p.openHostPort(port);
       setState(() {
         _socket = socket;
@@ -53,16 +63,23 @@ class _SendState extends State<Send> {
           });
         });
       });
-    } catch (e) {}
+    } else {
+      var socket = await FlutterP2p.connectToHost(
+        widget.deviceAddress, // see above `Connect to a device`
+        port,
+      );
+      setState(() {
+        _socket = socket;
+      });
+      widget.selections.allSelections.forEach((element) {
+        sendFile(element);
+      });
+    }
   }
 
   @override
   void initState() {
-    progress().then((value) {
-      if (value) {
-        sendData(8888);
-      }
-    });
+    openAndAccept(8888);
     super.initState();
   }
 
@@ -71,102 +88,135 @@ class _SendState extends State<Send> {
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
+      appBar: AppBar(
+        elevation: 0.0,
+        backgroundColor: ThemeAssets().lightAccent,
+        leading: IconButton(icon: Icon(Icons.close), onPressed: () {}),
+        title: Text("Sending"),
+        centerTitle: true,
+      ),
       body: Container(
         width: width,
         height: height,
         color: ThemeAssets().lightAccent,
-        child: ListView.builder(
-            itemCount: widget.selections.allSelections.length,
-            itemBuilder: (context, i) {
-              if (widget.selections.allSelections[i]
-                  .containsKey("Application")) {
-                Application app =
-                    widget.selections.allSelections[i]["Application"];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: app is ApplicationWithIcon
-                        ? MemoryImage(app.icon)
-                        : Icons.android,
-                  ),
-                  title: Text(app.appName, style: ThemeAssets().titleBlack),
-                  subtitle: Text(
-                    app.apkFilePath,
-                    style: ThemeAssets().subtitle,
-                  ),
-                  trailing: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              if (widget.selections.allSelections[i].containsKey("Song")) {
-                Song song = widget.selections.allSelections[i]["Song"];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: ThemeAssets().darkAccent,
-                    child: Icon(Icons.music_note),
-                  ),
-                  title: Text(song.songName, style: ThemeAssets().titleBlack),
-                  subtitle: Text(
-                    song.artistName,
-                    style: ThemeAssets().subtitle,
-                  ),
-                  trailing: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              if (widget.selections.allSelections[i].containsKey("Video")) {
-                Video video = widget.selections.allSelections[i]["Video"];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: ThemeAssets().darkAccent,
-                    child: Icon(Icons.movie),
-                  ),
-                  title: Text(video.videoName, style: ThemeAssets().titleBlack),
-                  subtitle: Text(
-                    video.duration,
-                    style: ThemeAssets().subtitle,
-                  ),
-                  trailing: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              if (widget.selections.allSelections[i].containsKey("File")) {
-                MyFile file = widget.selections.allSelections[i]["File"];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: ThemeAssets().darkAccent,
-                    child: Icon(Icons.folder),
-                  ),
-                  title: Text(file.fileName, style: ThemeAssets().titleBlack),
-                  subtitle: Text(
-                    file.filePath,
-                    style: ThemeAssets().subtitle,
-                  ),
-                  trailing: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              if (widget.selections.allSelections[i].containsKey("Image")) {
-                String pic = widget.selections.allSelections[i]["Image"];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: FileImage(File(pic)),
-                  ),
-                  title: Text(pic.substring(pic.lastIndexOf("/"), pic.length),
-                      style: ThemeAssets().titleBlack),
-                  subtitle: Text(
-                    pic,
-                    style: ThemeAssets().subtitle,
-                  ),
-                  trailing: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-            }),
+        alignment: Alignment.center,
+        child: Container(
+          height: height * 0.9,
+          child: ListView.builder(
+              itemCount: widget.selections.allSelections.length,
+              itemBuilder: (context, i) {
+                try {
+                  Application app =
+                      widget.selections.allSelections[i]['Application'];
+                  print(app is ApplicationWithIcon);
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: app is ApplicationWithIcon
+                              ? MemoryImage(app.icon)
+                              : Icon(Icons.android),
+                        ),
+                        title: Text(
+                          app.appName,
+                          style: ThemeAssets().titleBlack,
+                        ),
+                        subtitle: Text(app.dataDir),
+                        //trailing: CircularProgressIndicator(),
+                      ),
+                      Divider()
+                    ],
+                  );
+                } catch (e) {}
+                try {
+                  Song music = widget.selections.allSelections[i]['Song'];
+                  return Column(
+                    children: <Widget>[
+                      ListTile(
+                        leading: CircleAvatar(
+                          child: Icon(Icons.music_note),
+                        ),
+                        title: Text(
+                          music.songName,
+                          style: ThemeAssets().titleBlack,
+                        ),
+                        subtitle: Text(music.artistName),
+                        //trailing: CircularProgressIndicator(),
+                      ),
+                      Divider()
+                    ],
+                  );
+                } catch (e) {}
+                try {
+                  Video video = widget.selections.allSelections[i]['Video'];
+                  return Column(
+                    children: <Widget>[
+                      ListTile(
+                        leading: CircleAvatar(
+                          child: Icon(Icons.music_note),
+                        ),
+                        title: Text(
+                          video.videoName,
+                          style: ThemeAssets().titleBlack,
+                        ),
+                        subtitle: Text(video.fullPath),
+                        //trailing: CircularProgressIndicator(),
+                      ),
+                      Divider()
+                    ],
+                  );
+                } catch (e) {}
+                try {
+                  File image =
+                      File(widget.selections.allSelections[i]['Image']);
+                  return Column(
+                    children: <Widget>[
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: FileImage(image),
+                        ),
+                        title: Text(
+                          image.path.substring(
+                              image.path.lastIndexOf("/"), image.path.length),
+                          style: ThemeAssets().titleBlack,
+                        ),
+                        subtitle: Text(image.path),
+                        //trailing: CircularProgressIndicator(),
+                      ),
+                      Divider()
+                    ],
+                  );
+                } catch (e) {}
+                try {
+                  MyFile myFile = widget.selections.allSelections[i]['File'];
+                  return Column(
+                    children: <Widget>[
+                      ListTile(
+                        leading: CircleAvatar(
+                          child: myFile.isDirectory
+                              ? Icon(Icons.folder)
+                              : Icon(Icons.insert_drive_file),
+                        ),
+                        title: Text(
+                          myFile.fileName,
+                          style: ThemeAssets().titleBlack,
+                        ),
+                        subtitle: Text(myFile.filePath),
+                        //trailing: CircularProgressIndicator(),
+                      )
+                    ],
+                  );
+                } catch (e) {}
+                return Center(
+                    child: Text(
+                  "Nothing to send",
+                  style: ThemeAssets().subtitleBlack,
+                  textAlign: TextAlign.center,
+                ));
+              }),
+        ),
       ),
     );
   }
