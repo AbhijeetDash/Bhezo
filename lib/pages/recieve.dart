@@ -13,9 +13,16 @@ class Recieve extends StatefulWidget {
 }
 
 class _RecieveState extends State<Recieve> {
+  Uint8List data;
   @override
   void initState() {
     super.initState();
+  }
+
+  void addBytes(Uint8List data) {
+    data.forEach((element) {
+      this.data.add(element);
+    });
   }
 
   void startRecieve(int port) async {
@@ -25,25 +32,7 @@ class _RecieveState extends State<Recieve> {
       timeout: 100000,
     );
     socket.inputStream.listen((event) {
-      var msg = "";
-      msg += String.fromCharCodes(event.data);
-      if (event.dataAvailable == 0) {
-        showDialog(
-            context: context,
-            child: Card(
-              child: SizedBox(
-                height: 200,
-                width: 200,
-                child: Text(msg),
-              ),
-            ));
-      }
-      // if (event.hasData()) {
-      //   setState(() {
-      //     // Update UI;
-      //   });
-      // }
-      // File.fromUri(Uri.parse("../")).writeAsBytes(event.data);
+      addBytes(event.data);
     });
   }
 

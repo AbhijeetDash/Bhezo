@@ -44,13 +44,14 @@ class _SendState extends State<Send> {
 
       widget.selections.checkList.forEach((element) {
         socket.writeString("Hello World");
-        // File data = File(element);
-        // data.readAsBytes().then((value) {
-        //   List<int> list = value;
-        //   socket.write(list).then((value) {
-        //     // Update the UI;
-        //   });
-        // });
+        File data = File(element);
+        data.readAsBytes().then((bytes) {
+          print(bytes.length);
+          socket.write(bytes).then((value) {
+            // Update the UI;
+            print(value);
+          });
+        });
       });
     } catch (e) {}
   }
