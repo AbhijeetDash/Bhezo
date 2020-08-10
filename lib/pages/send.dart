@@ -38,6 +38,11 @@ class _SendState extends State<Send> {
       File file = File(app.apkFilePath);
       file.openRead().forEach((element) {
         Uint8List dd = Uint8List.fromList(element);
+        _socket.writeString("Application");
+        _socket.writeString(app.appName);
+        if (app is ApplicationWithIcon) {
+          _socket.write(app.icon);
+        }
         _socket.write(dd);
       });
     } catch (e) {
@@ -52,16 +57,8 @@ class _SendState extends State<Send> {
         _socket = socket;
       });
 
-      widget.selections.checkList.forEach((element) {
-        socket.writeString("Hello World");
-        File data = File(element);
-        data.readAsBytes().then((bytes) {
-          print(bytes.length);
-          socket.write(bytes).then((value) {
-            // Update the UI;
-            print(value);
-          });
-        });
+      widget.selections.allSelections.forEach((element) {
+        sendFile(element);
       });
     } else {
       var socket = await FlutterP2p.connectToHost(
@@ -71,6 +68,7 @@ class _SendState extends State<Send> {
       setState(() {
         _socket = socket;
       });
+
       widget.selections.allSelections.forEach((element) {
         sendFile(element);
       });
@@ -108,7 +106,6 @@ class _SendState extends State<Send> {
                 try {
                   Application app =
                       widget.selections.allSelections[i]['Application'];
-                  print(app is ApplicationWithIcon);
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,

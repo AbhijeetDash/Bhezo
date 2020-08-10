@@ -18,6 +18,12 @@ class Recieve extends StatefulWidget {
 class _RecieveState extends State<Recieve> {
   Uint8List data;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  String fileType;
+  String fileName;
+  var icon;
+  var fileLength;
+  var index = 0;
+  var widgets = <Widget>[];
 
   @override
   void initState() {
@@ -36,8 +42,29 @@ class _RecieveState extends State<Recieve> {
       port,
       timeout: 100000,
     );
-    socket.inputStream.listen((event) {
-      addBytes(event.data);
+
+    socket.inputStream.listen((event) async {
+      if (index == 0) {
+        fileType = String.fromCharCodes(event.data);
+      }
+      if (index == 1) {
+        fileName = String.fromCharCodes(event.data);
+      }
+      if (index == 2) {
+        icon = MemoryImage(event.data);
+      }
+      if (event.dataAvailable == 0 && index == 3) {
+        widgets.add(ListTile(
+          leading: Icon(icon),
+          title: Text(fileName),
+          subtitle: Text(fileType),
+          trailing: Text(fileLength),
+        ));
+        addBytes(event.data);
+      }
+      if (event.dataAvailable == 0) {
+        index++;
+      }
     });
   }
 
@@ -46,12 +73,17 @@ class _RecieveState extends State<Recieve> {
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
-      body: Container(
-          width: width,
-          height: height,
-          alignment: Alignment.center,
-          child: Text("Nothing to recieve")),
-    );
+        body: Container(
+            width: width,
+            height: height,
+            alignment: Alignment.center,
+            child: StreamBuilder(
+                stream: Stream.fromIterable(widgets),
+                builder: (context, snap) {
+                  return ListView.builder(itemBuilder: (context, i) {
+                    return snap.data;
+                  });
+                })));
   }
 
   snackBar(String text) {
