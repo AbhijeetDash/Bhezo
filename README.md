@@ -2,6 +2,8 @@
 
 A File sharing application made with Flutter.
 
-## Getting Started
+## How it works
 
-Download from play store
+Simple really.. it works with the help of wifi-direct and shares files.
+
+## How it Looks
